@@ -6,27 +6,28 @@ const dynamoDb = new DocumentClient();
 
 
 exports.handler = async (event) => {
-    console.log(event);
-    const data = await dynamoDb
+    const body = JSON.parse(event.body);
+    if (body.action === 'opened') {
+        const data = await dynamoDb
         .scan({
             TableName: process.env.TABLE_NAME,
         })
         .promise();
-    const firstItem = data.Items[0]; // maybe we need something cleaner here
-    
-    const installationOctokit = new Octokit({
-        authStrategy: createAppAuth,
-        auth: {
-          appId: firstItem.app_id,
-          privateKey: firstItem.pem,
-          installationId: event.data.installationId,
-        },
-    });
-      
-    await installationOctokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
-        owner: "maxday", // need to take the owner value from `event`
-        repo: "test-web-hooks", // need to take the repo value from `event`
-        issue_number: 1, // need to take the issue_number from `event`
-        body: "hello from a Lambda-powered Github App 🔥",
-    });
+        const firstItem = data.Items[0];
+        
+        const installationOctokit = new Octokit({
+            authStrategy: createAppAuth,
+            auth: {
+              appId: firstItem.app_id,
+              privateKey: firstItem.pem,
+              installationId: body.installation.id,
+            },
+        });
+        await installationOctokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
+            owner: body.issue.user.login,
+            repo: body.repository.name,
+            issue_number: body.issue.number,
+            body: "hello from a Lambda-powered Github App 🔥",
+        });
+    }
 };
