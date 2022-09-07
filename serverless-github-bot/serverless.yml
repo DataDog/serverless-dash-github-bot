@@ -21,14 +21,14 @@ custom:
     apiKey: ${env:DD_API_KEY}
     captureLambdaPayload: true
 
-  soloTopicName: ${self:service}-${opt:stage, "dev"}-event-topic
+  topicName: ${self:service}-${opt:stage, "dev"}-event-topic
   queueName: $[self:service}-${opt:stage, "dev"}-event-queue
 
 functions:
   webhook:
     handler: handler.webhook
     environment:
-      SQS_QUEUE: !Ref eventQueue
+      SNS_TOPIC: !Ref topicName
     events:
       - httpApi:
           path: /receiveWebhook
