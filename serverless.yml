@@ -1,0 +1,21 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: serverless-dash-2022-github-bot
+frameworkVersion: "3"
+
+provider:
+    name: aws
+    runtime: nodejs12.x
+
+functions:
+    hello:
+        handler: handler.hello
