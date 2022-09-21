@@ -9,7 +9,8 @@
 #
 # Happy Coding!
 
-service: serverless-dash-2022-github-bot
+service: hello-world
+
 frameworkVersion: "3"
 
 provider:
