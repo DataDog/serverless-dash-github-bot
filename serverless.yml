@@ -1,22 +1,77 @@
-# Welcome to Serverless!
-#
-# This file is the main config file for your service.
-# It's very minimal at this point and uses default values.
-# You can always add more config options for more control.
-#
-# For full config options, check the docs:
-#    docs.serverless.com
-#
-# Happy Coding!
-
-service: hello-world
+service: serverless-github-bot
 
 frameworkVersion: "3"
 
 provider:
     name: aws
     runtime: nodejs16.x
-
+    iamRoleStatements:
+        - Effect: Allow
+          Action: "dynamodb:Scan"
+          Resource: "*"
+        - Effect: Allow
+          Action:
+              - SQS:*
+          Resource:
+              - Fn::GetAtt: [eventQueue, Arn]
+        - Effect: Allow
+          Action:
+              - SNS:*
+          Resource:
+              - !Ref eventTopic
 functions:
-    hello:
-        handler: handler.hello
+    webhook:
+        handler: handler.webhook
+        environment:
+            SNS_TOPIC_ARN: !Ref eventTopic
+        events:
+            - httpApi:
+                  path: /webhook
+                  method: post
+    processor:
+        handler: handler.processor
+        events:
+            - sqs:
+                  arn: { "Fn::GetAtt": [eventQueue, Arn] }
+                  batchSize: 1
+custom:
+    datadog:
+        apiKey: ${env:DD_API_KEY}
+        captureLambdaPayload: true
+    queueName: ${self:service}-${opt:stage, "dev"}-event-queue
+plugins:
+    - serverless-plugin-datadog
+
+resources:
+    Resources:
+        # Creates our SNS topic
+        eventTopic:
+            Type: AWS::SNS::Topic
+            Properties:
+                # Subscribes the SQS queue to the SNS topic
+                Subscription:
+                    - Protocol: sqs
+                      Endpoint: !GetAtt eventQueue.Arn
+        # Creates our SQS queue
+        eventQueue:
+            Type: AWS::SQS::Queue
+            Properties:
+                QueueName: ${self:custom.queueName}
+        # Allows our SNS topic to publish to our SQS queue
+        SnsToSqsPolicy:
+            Type: AWS::SQS::QueuePolicy
+            Properties:
+                PolicyDocument:
+                    Version: "2012-10-17"
+                    Statement:
+                        - Sid: "Allow SNS publish to SQS"
+                          Effect: Allow
+                          Principal:
+                              Service: "sns.amazonaws.com"
+                          Resource: !GetAtt eventQueue.Arn
+                          Action: SQS:SendMessage
+                          Condition:
+                              ArnEquals:
+                                  aws:SourceArn: !Ref eventTopic
+                Queues:
+                    - Ref: eventQueue
